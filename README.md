@@ -1,6 +1,6 @@
 # WebGPU Ray Marching Scene Editor
 
-![Scene Editor Preview](placeholder_for_gif.gif)
+![Scene Editor Preview]("C:\documents\CreaTech\AICG\AI_CG_ALL_CODES\Lecture04\overview")
 
 [**Live Demo**](https://your-username.github.io/your-repo-name/)
 
@@ -27,3 +27,4 @@ A powerful, interactive 3D scene editor built with WebGPU and Ray Marching. This
     python -m http.server
     ```
 4.  Open your browser to `http://localhost:8000`.
+
