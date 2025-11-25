@@ -1,0 +1,9 @@
+{
+  "shaders": [
+    {
+      "file": "raymarch_basic.wgsl",
+      "name": "3D Scene Editor",
+      "description": "Interactive ray marching scene with editable primitives"
+    }
+  ]
+}
