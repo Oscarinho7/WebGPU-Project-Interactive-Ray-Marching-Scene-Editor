@@ -1,6 +1,7 @@
 # WebGPU Ray Marching Scene Editor
 
 ![Scene Editor Preview](./images/overview.png)
+<img src="./images/overview.png" width="600">git ad
 
 [**Click Here For Live Demo**](https://oscarinho7.github.io/WebGPU-Project-Interactive-Ray-Marching-Scene-Editor/)
 
