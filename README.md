@@ -2,11 +2,11 @@
 
 ## Scene Editor Preview
 
-<<<<<<< HEAD
-[**Click Here For Live Demo**](https://oscarinho7.github.io/WebGPU-Project-Interactive-Ray-Marching-Scene-Editor/)
-=======
+
+[**Click Here For Live Demo**](./images/overview.png)
 <img src="./images/overview.png" width="600">
->>>>>>> 47750070673da90cd2b1e6d0b59ec186939605f6
+
+
 
 [**Click Here For Live Demo**](https://oscarinho7.github.io/WebGPU-Project-Interactive-Ray-Marching-Scene-Editor/)
 
