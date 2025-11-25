@@ -2,7 +2,7 @@
 
 ![Scene Editor Preview](./images/overview.png)
 
-[**Live Demo**](https://oscarinho7.github.io/WebGPU-Project-Interactive-Ray-Marching-Scene-Editor/)
+[**Click Here For Live Demo**](https://oscarinho7.github.io/WebGPU-Project-Interactive-Ray-Marching-Scene-Editor/)
 
 ## Overview
 A powerful, interactive 3D scene editor built with WebGPU and Ray Marching. This application allows users to manipulate 3D primitives in real-time using a custom UI panel, demonstrating the power of modern web graphics.
