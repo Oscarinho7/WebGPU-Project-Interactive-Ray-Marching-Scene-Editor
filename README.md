@@ -1,7 +1,8 @@
 # WebGPU Ray Marching Scene Editor
 
+
 ## Scene Editor Preview
-![overview](./images/overview.png)
+["C:\documents\CreaTech\AICG\AI_CG_ALL_CODES\Lecture04\overview"]
 <img src="./images/overview.png" width="600">
 
 [**Click Here For Live Demo**](https://oscarinho7.github.io/WebGPU-Project-Interactive-Ray-Marching-Scene-Editor/)
