@@ -119,9 +119,9 @@
 
 <body class="font-mono bg-gray-900 text-white overflow-hidden">
 
-  <div id="container" class="flex w-screen h-screen flex-row">
+  <div id="container" class="flex w-screen h-[100dvh] flex-col md:flex-row overflow-hidden">
 
-    <div id="canvas-container" class="relative flex-1 bg-black h-full">
+    <div id="canvas-container" class="relative w-full h-[40%] md:h-full md:flex-1 bg-black shrink-0">
       <canvas id="canvas" class="block w-full h-full"></canvas>
 
       <div id="error-message"
@@ -133,12 +133,14 @@
       </div>
     </div>
 
-    <div id="editor-container" class="flex flex-col bg-[#1d2021] w-96 h-full border-l border-[#3c3836]">
-      <div class="p-3 border-b border-[#3c3836] font-bold text-[#ebdbb2] flex justify-between items-center">
+    <!-- Sidebar: Bottom 60% on mobile, Right side on desktop -->
+    <div id="editor-container"
+      class="flex flex-col bg-[#1d2021] w-full h-[60%] md:w-80 md:h-full border-t md:border-t-0 md:border-l border-[#3c3836] shrink-0">
+      <div class="p-3 border-b border-[#3c3836] font-bold text-[#ebdbb2] flex justify-between items-center shrink-0">
         <span>Scene Editor</span>
         <span id="fps" class="text-xs font-normal text-[#928374]">0 FPS</span>
       </div>
-      <div id="panel-content" class="flex-1 overflow-y-auto p-3"></div>
+      <div id="panel-content" class="flex-1 overflow-y-auto p-4 overscroll-contain"></div>
     </div>
   </div>
 
@@ -174,9 +176,9 @@
 
     // Camera Configuration
     const camera = {
-      pos: [0, 0, -4],
-      yaw: 0,
-      pitch: 0,
+      pos: [3.0, 2.0, -5.0],
+      yaw: -0.5, // Look slightly left
+      pitch: -0.3, // Look slightly down
       front: [0, 0, 1],
       right: [1, 0, 0],
       up: [0, 1, 0],
@@ -559,6 +561,35 @@ struct Uniforms {
     canvas.addEventListener("mouseup", () => { mouseDown = false; dragMode = null; });
     canvas.addEventListener("mouseleave", () => { mouseDown = false; dragMode = null; });
 
+    // Touch Support
+    canvas.addEventListener("touchstart", (e) => {
+      e.preventDefault();
+      const touch = e.touches[0];
+      const mouseEvent = new MouseEvent("mousedown", {
+        clientX: touch.clientX,
+        clientY: touch.clientY,
+        button: 0 // Simulate left click
+      });
+      canvas.dispatchEvent(mouseEvent);
+    }, { passive: false });
+
+    canvas.addEventListener("touchmove", (e) => {
+      e.preventDefault();
+      const touch = e.touches[0];
+      const mouseEvent = new MouseEvent("mousemove", {
+        clientX: touch.clientX,
+        clientY: touch.clientY,
+        buttons: 1 // Simulate left click drag
+      });
+      canvas.dispatchEvent(mouseEvent);
+    }, { passive: false });
+
+    canvas.addEventListener("touchend", (e) => {
+      e.preventDefault();
+      const mouseEvent = new MouseEvent("mouseup", {});
+      canvas.dispatchEvent(mouseEvent);
+    }, { passive: false });
+
     canvas.addEventListener("wheel", (e) => {
       e.preventDefault();
       const zoomSpeed = 0.005;
@@ -686,12 +717,12 @@ struct Uniforms {
 
       // 2. Add Object Buttons
       const addBtnDiv = document.createElement("div");
-      addBtnDiv.className = "flex gap-2 mb-4 flex-wrap";
+      addBtnDiv.className = "flex gap-3 mb-6 flex-wrap";
       addBtnDiv.innerHTML = `
-            <button id="add-sphere" class="flex-1 bg-[#d65d0e] text-[#ebdbb2] py-1 rounded text-xs hover:opacity-80">Add Sphere</button>
-            <button id="add-box" class="flex-1 bg-[#689d6a] text-[#ebdbb2] py-1 rounded text-xs hover:opacity-80">Add Box</button>
-            <button id="add-torus" class="flex-1 bg-[#458588] text-[#ebdbb2] py-1 rounded text-xs hover:opacity-80">Add Torus</button>
-            <button id="add-pyramid" class="flex-1 bg-[#b16286] text-[#ebdbb2] py-1 rounded text-xs hover:opacity-80">Add Pyramid</button>
+            <button id="add-sphere" class="flex-1 bg-[#d65d0e] text-[#ebdbb2] py-3 rounded text-sm font-bold hover:opacity-80 active:scale-95 transition-transform">Add Sphere</button>
+            <button id="add-box" class="flex-1 bg-[#689d6a] text-[#ebdbb2] py-3 rounded text-sm font-bold hover:opacity-80 active:scale-95 transition-transform">Add Box</button>
+            <button id="add-torus" class="flex-1 bg-[#458588] text-[#ebdbb2] py-3 rounded text-sm font-bold hover:opacity-80 active:scale-95 transition-transform">Add Torus</button>
+            <button id="add-pyramid" class="flex-1 bg-[#b16286] text-[#ebdbb2] py-3 rounded text-sm font-bold hover:opacity-80 active:scale-95 transition-transform">Add Pyramid</button>
           `;
       content.appendChild(addBtnDiv);
 
