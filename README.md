@@ -2,8 +2,7 @@
 
 
 ## Scene Editor Preview
-["./images/overview.png"]
-<img src="./images/overview.png" width="600">
+<img src="./images/scene.png" width="600">
 
 [**Click Here For Live Demo**](https://oscarinho7.github.io/WebGPU-Project-Interactive-Ray-Marching-Scene-Editor/)
 
