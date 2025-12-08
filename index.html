@@ -5,11 +5,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>WebGPU Shadertoy</title>
+
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/mode/simple.min.js"></script>
+
   <style>
+    /* Custom Gruvbox theme overrides for CodeMirror */
     .cm-s-gruvbox-dark-hard.CodeMirror {
       background-color: #1d2021;
       color: #ebdbb2;
@@ -94,14 +97,13 @@
       color: #ebdbb2 !important;
     }
 
-    /* Ensure CodeMirror scroll container works properly */
+    /* Layout utilities */
     .CodeMirror-scroll {
       height: 100%;
       overflow-y: auto !important;
       overflow-x: auto !important;
     }
 
-    /* Editor container should fill available space */
     #code-editor-container {
       height: 100%;
       display: flex;
@@ -116,92 +118,61 @@
 </head>
 
 <body class="font-mono bg-gray-900 text-white overflow-hidden">
+
   <div id="container" class="flex w-screen h-screen flex-row">
+
     <div id="canvas-container" class="relative flex-1 bg-black h-full">
       <canvas id="canvas" class="block w-full h-full"></canvas>
+
       <div id="error-message"
         class="absolute bottom-2.5 left-2.5 right-2.5 text-red-500 text-xs bg-black/80 p-1.5 rounded hidden max-h-24 overflow-y-auto z-10">
       </div>
+
       <div class="absolute top-4 left-4 text-white/50 text-xs pointer-events-none">
         ZQSD to Move • A/E Up/Down • Left Drag to Look • Right Drag to Pan • Scroll to Zoom
       </div>
     </div>
-    <div id="editor-container" class="flex flex-col bg-[#1d2021] w-80 h-full border-l border-[#3c3836]">
+
+    <div id="editor-container" class="flex flex-col bg-[#1d2021] w-96 h-full border-l border-[#3c3836]">
       <div class="p-3 border-b border-[#3c3836] font-bold text-[#ebdbb2] flex justify-between items-center">
         <span>Scene Editor</span>
         <span id="fps" class="text-xs font-normal text-[#928374]">0 FPS</span>
       </div>
-      <div id="panel-content" class="flex-1 overflow-y-auto p-3">
-        <!-- Dynamic Content -->
-      </div>
+      <div id="panel-content" class="flex-1 overflow-y-auto p-3"></div>
     </div>
   </div>
+
   <script>
-    // ... (shaders object) ...
-
-    let fallbackShader = `// Fragment shader - runs once per pixel
-@fragment
-fn fs_main(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
-    // Simple gradient as fallback
-    let uv = fragCoord.xy / uniforms.resolution;
-    return vec4<f32>(uv, 0.5, 1.0);
-}`;
-
-    // CodeMirror.defineSimpleMode("wgsl", {
-    //   start: [
-    //     { regex: /\b(fn|let|var|const|if|else|for|while|loop|return|break|continue|discard|switch|case|default|struct|type|alias)\b/, token: "keyword" },
-    //     { regex: /\b(bool|i32|u32|f32|f16|vec2|vec3|vec4|mat2x2|mat3x3|mat4x4|array|sampler|texture_2d|texture_3d)\b/, token: "type" },
-    //     { regex: /\b(vec2|vec3|vec4|mat2x2|mat3x3|mat4x4|array)<[^>]+>/, token: "type" },
-    //     { regex: /\b(abs|acos|all|any|asin|atan|atan2|ceil|clamp|cos|cosh|cross|degrees|determinant|distance|dot|exp|exp2|faceforward|floor|fma|fract|frexp|inversesqrt|ldexp|length|log|log2|max|min|mix|modf|normalize|pow|radians|reflect|refract|round|sign|sin|sinh|smoothstep|sqrt|step|tan|tanh|transpose|trunc)\b/, token: "builtin" },
-    //     { regex: /@(vertex|fragment|compute|builtin|location|binding|group|stage|workgroup_size|interpolate|invariant)/, token: "attribute" },
-    //     { regex: /\b\d+\.?\d*[fu]?\b|0x[0-9a-fA-F]+[ul]?/, token: "number" },
-    //     { regex: /\/\/.*/, token: "comment" },
-    //     { regex: /\/\*/, token: "comment", next: "comment" },
-    //     { regex: /[+\-*/%=<>!&|^~?:]/, token: "operator" },
-    //     { regex: /[{}()\[\];,\.]/, token: "punctuation" },
-    //   ],
-    //   comment: [
-    //     { regex: /.*?\*\//, token: "comment", next: "start" },
-    //     { regex: /.*/, token: "comment" },
-    //   ],
-    // }); // prettier-ignore
-
-    // const editor = CodeMirror.fromTextArea(
-    //   document.getElementById("code-editor"),
-    //   {
-    //     mode: "wgsl",
-    //     theme: "gruvbox-dark-hard",
-    //     lineNumbers: true,
-    //     lineWrapping: true,
-    //     value: fallbackShader,
-    //     tabSize: 2,
-    //     indentUnit: 2,
-    //     viewportMargin: Infinity,
-    //     scrollbarStyle: "native",
-    //   },
-    // );
-    // editor.setValue(fallbackShader);
-
-    let device;
-    let context;
-    let pipeline;
-    let uniformBuffer;
-    let bindGroup;
-    let startTime = performance.now();
-    let lastFrameTime = startTime;
-    let frameCount = 0;
-    let lastFpsUpdate = startTime;
-    let mouseX = 0;
-    let mouseY = 0;
-    let mouseDown = false;
-    // let isPanelOpen = true;
-    // let isFullscreen = false;
-
+    /* ==========================================================================
+       SECTION 1: DOM ELEMENTS & GLOBAL STATE
+       ========================================================================== */
     const $ = (id) => document.getElementById(id);
     const canvas = $("canvas");
     const errorMsg = $("error-message");
     const canvasContainer = $("canvas-container");
     const editorContainer = $("editor-container");
+
+    // WebGPU Context
+    let device;
+    let context;
+    let pipeline;
+    let uniformBuffer;
+    let bindGroup;
+
+    // Time & Rendering State
+    let startTime = performance.now();
+    let lastFrameTime = startTime;
+    let frameCount = 0;
+    let lastFpsUpdate = startTime;
+
+    // Interaction State
+    let mouseX = 0;
+    let mouseY = 0;
+    let mouseDown = false;
+    let selectedId = -1.0; // -1 means nothing selected
+    const keys = {};
+
+    // Camera Configuration
     const camera = {
       pos: [0, 0, -4],
       yaw: 0,
@@ -212,8 +183,19 @@ fn fs_main(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
       speed: 5.0,
     };
 
-    const keys = {};
+    // Camera Physics (Momentum)
+    const cameraState = {
+      velocity: [0, 0, 0],
+      yawVel: 0,
+      pitchVel: 0,
+      friction: 0.8,
+      acceleration: 0.5
+    };
 
+    /* ==========================================================================
+       SECTION 2: SCENE DATA
+       ========================================================================== */
+    // This object holds the JS state which is serialized to the GPU every frame.
     const scene = {
       spheres: [
         { pos: [1.5, 0.0, 0.0], r: 0.5, color: [1.0, 0.3, 0.3] }
@@ -221,228 +203,142 @@ fn fs_main(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
       boxes: [
         { pos: [0.0, 0.0, 0.0], size: [0.3, 0.4, 0.3], color: [0.3, 1.0, 0.3] }
       ],
+      toruses: [
+        { pos: [-1.5, 0.0, 0.0], t: [0.4, 0.1], color: [0.3, 0.3, 1.0] }
+      ],
+      pyramids: [
+        { pos: [0.0, 1.0, 0.0], h: 0.5, color: [1.0, 1.0, 0.0] }
+      ]
     };
+
+    // Global Visual Settings
+    let smoothBlend = 0.4;
+    let lightPos = [2.0, 5.0, -1.0];
+    let lightIntensity = 1.0;
 
     const uniforms = {
       resolution: { label: "resolution", initial: "0 × 0", update: (w, h) => `${w} × ${h}` },
       time: { label: "time", initial: "0.00s", update: (t) => `${t.toFixed(2)}s` },
     };
 
-    // $("uniforms-table").innerHTML = Object.entries(uniforms)
-    //   .map(
-    //     ([key, u]) =>
-    //       `<tr class="border-b" style="border-color:#3c3836"><td class="py-1.5 font-semibold" style="color:#fe8019">${u.label}</td><td class="py-1.5 text-right font-mono" id="u-${key}">${u.initial}</td></tr>`,
-    //   )
-    //   .join("");
+    /* ==========================================================================
+       SECTION 3: MATH HELPERS (CPU-Side)
+       ========================================================================== */
+    // Vector Math Utilities required for CPU picking logic
+    function length(v) { return Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]); }
+    function dot(a, b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
+    function sub(a, b) { return [a[0] - b[0], a[1] - b[1], a[2] - b[2]]; }
+    function add(a, b) { return [a[0] + b[0], a[1] + b[1], a[2] + b[2]]; }
+    function mul(v, s) { return [v[0] * s, v[1] * s, v[2] * s]; }
+    function normalize(v) { const l = length(v); return l > 0 ? mul(v, 1 / l) : [0, 0, 0]; }
+    function cross(a, b) { return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]; }
+    function max(a, b) { return [Math.max(a[0], b[0]), Math.max(a[1], b[1]), Math.max(a[2], b[2])]; }
+    function min(a, b) { return [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.min(a[2], b[2])]; }
+    function abs(v) { return [Math.abs(v[0]), Math.abs(v[1]), Math.abs(v[2])]; }
 
-    function createControl(label, value, type, callback, step = 0.01, min = -5, max = 5) {
-      const div = document.createElement("div");
-      div.className = "mb-2";
-      div.innerHTML = `
-          <div class="flex justify-between text-xs mb-1" style="color:#a89984">${label}</div>
-          <div class="flex gap-2">
-            <input type="${type}" value="${value}" step="${step}" min="${min}" max="${max}" class="w-full bg-[#3c3836] text-[#ebdbb2] rounded px-1 text-xs border-none outline-none focus:ring-1 ring-[#fe8019]">
-          </div>
-        `;
-      const input = div.querySelector("input");
-      input.oninput = (e) => callback(type === "number" || type === "range" ? parseFloat(e.target.value) : e.target.value);
-      return div;
+    // Signed Distance Functions (JS implementation matching Shader logic)
+    function sdSphere(p, r) { return length(p) - r; }
+
+    function sdBox(p, b) {
+      const q = sub(abs(p), b);
+      const m = max(q, [0, 0, 0]);
+      return length(m) + Math.min(Math.max(q[0], Math.max(q[1], q[2])), 0.0);
     }
 
-    function createVec3Control(label, vec, callback, min = -5, max = 5) {
-      const div = document.createElement("div");
-      div.className = "mb-3";
-      div.innerHTML = `<div class="text-xs font-bold mb-1" style="color:#fabd2f">${label}</div>`;
-
-      const axisColors = ["#ff3333", "#33ff33", "#3333ff"];
-      ["x", "y", "z"].forEach((axis, i) => {
-        const row = document.createElement("div");
-        row.className = "flex items-center gap-2 mb-1";
-        row.innerHTML = `
-                <span class="text-xs w-8 uppercase font-bold" style="color:${axisColors[i]}">${axis}</span>
-                <input type="range" min="${min}" max="${max}" step="0.01" value="${vec[i]}" class="flex-1 h-1 bg-[#1d2021] rounded appearance-none cursor-pointer">
-                <span class="text-xs w-8 text-right font-mono" style="color:#ebdbb2">${vec[i].toFixed(2)}</span>
-            `;
-        const input = row.querySelector("input");
-        const valDisplay = row.querySelector("span:last-child");
-        input.oninput = (e) => {
-          const val = parseFloat(e.target.value);
-          vec[i] = val;
-          valDisplay.textContent = val.toFixed(2);
-          callback();
-        };
-        div.appendChild(row);
-      });
-      return div;
+    function sdCone(p, c, h) {
+      const q = Math.sqrt(p[0] * p[0] + p[2] * p[2]);
+      return Math.max(dot([c[0], c[1]], [q, p[1]]), -h - p[1]);
     }
 
-    function createColorControl(label, color, callback) {
-      const div = document.createElement("div");
-      div.className = "mb-3 flex items-center justify-between";
-
-      // Convert normalized float color to hex
-      const toHex = (c) => {
-        const hex = Math.round(c * 255).toString(16).padStart(2, "0");
-        return hex;
-      };
-      const hexColor = `#${toHex(color[0])}${toHex(color[1])}${toHex(color[2])}`;
-
-      div.innerHTML = `
-            <div class="text-xs font-bold" style="color:#fabd2f">${label}</div>
-            <input type="color" value="${hexColor}" class="bg-transparent border-none w-8 h-8 cursor-pointer">
-          `;
-
-      const input = div.querySelector("input");
-      input.oninput = (e) => {
-        const hex = e.target.value;
-        color[0] = parseInt(hex.substr(1, 2), 16) / 255;
-        color[1] = parseInt(hex.substr(3, 2), 16) / 255;
-        color[2] = parseInt(hex.substr(5, 2), 16) / 255;
-        callback();
-      };
-      return div;
+    function sdTorus(p, t) {
+      const q = [Math.sqrt(p[0] * p[0] + p[2] * p[2]) - t[0], p[1]];
+      return Math.sqrt(q[0] * q[0] + q[1] * q[1]) - t[1];
     }
 
-    function initSceneEditor() {
-      const container = $("panel-content");
-      container.innerHTML = ""; // Clear
+    function sdPyramid(p, h) {
+      const boxSize = [h, h, h];
+      const q = [Math.abs(p[0]) - boxSize[0], Math.abs(p[1]) - boxSize[1], Math.abs(p[2]) - boxSize[2]];
+      return Math.sqrt(Math.max(q[0], 0) ** 2 + Math.max(q[1], 0) ** 2 + Math.max(q[2], 0) ** 2) + Math.min(Math.max(q[0], Math.max(q[1], q[2])), 0);
+    }
 
-      const addBtnDiv = document.createElement("div");
-      addBtnDiv.className = "flex gap-2 mb-4";
-      addBtnDiv.innerHTML = `
-            <button id="add-sphere" class="flex-1 bg-[#d65d0e] text-[#ebdbb2] py-1 rounded text-xs hover:opacity-80">Add Sphere</button>
-            <button id="add-box" class="flex-1 bg-[#689d6a] text-[#ebdbb2] py-1 rounded text-xs hover:opacity-80">Add Box</button>
-          `;
-      container.appendChild(addBtnDiv);
+    // Material IDs for Picking
+    const MAT_SPHERE_BASE = 10.0;
+    const MAT_BOX_BASE = 20.0;
+    const MAT_TORUS_BASE = 30.0;
+    const MAT_PYRAMID_BASE = 40.0;
 
-      addBtnDiv.querySelector("#add-sphere").onclick = () => {
-        if (scene.spheres.length < 4) {
-          scene.spheres.push({ pos: [0, 0, 0], r: 0.5, color: [1.0, 0.5, 0.5] });
-          initSceneEditor();
-        }
-      };
-      addBtnDiv.querySelector("#add-box").onclick = () => {
-        if (scene.boxes.length < 4) {
-          scene.boxes.push({ pos: [0, 0, 0], size: [0.5, 0.5, 0.5], color: [0.5, 1.0, 0.5] });
-          initSceneEditor();
-        }
-      };
+    // Scene Distance Calculation (CPU)
+    function getDistJS(p) {
+      let res = { d: 100.0, id: -1 };
 
-      // Spheres
       scene.spheres.forEach((s, i) => {
-        const wrapper = document.createElement("div");
-        wrapper.className = "mb-4 p-2 bg-[#3c3836] rounded";
-        wrapper.innerHTML = `
-                <div class="flex justify-between items-center mb-2">
-                    <span class="text-xs font-bold text-[#fe8019]">Sphere ${i + 1}</span>
-                    <button class="text-[#cc241d] hover:text-white text-xs">✕</button>
-                </div>
-              `;
-        wrapper.querySelector("button").onclick = () => {
-          scene.spheres.splice(i, 1);
-          initSceneEditor();
-        };
-
-        wrapper.appendChild(createVec3Control("Pos", s.pos, () => { }));
-
-        const rDiv = document.createElement("div");
-        rDiv.className = "mb-2 flex items-center gap-2";
-        rDiv.innerHTML = `<span class="text-xs w-8 text-[#a89984]">Rad</span><input type="range" min="0.1" max="2.0" step="0.01" value="${s.r}" class="flex-1 h-1 bg-[#1d2021] rounded appearance-none cursor-pointer">`;
-        rDiv.querySelector("input").oninput = (e) => s.r = parseFloat(e.target.value);
-        wrapper.appendChild(rDiv);
-
-        wrapper.appendChild(createColorControl("Color", s.color, () => { }));
-        container.appendChild(wrapper);
+        const d = sdSphere(sub(p, s.pos), s.r);
+        if (d < res.d) res = { d: d, id: MAT_SPHERE_BASE + i };
       });
 
-      // Boxes
       scene.boxes.forEach((b, i) => {
-        const wrapper = document.createElement("div");
-        wrapper.className = "mb-4 p-2 bg-[#3c3836] rounded";
-        wrapper.innerHTML = `
-                <div class="flex justify-between items-center mb-2">
-                    <span class="text-xs font-bold text-[#b8bb26]">Box ${i + 1}</span>
-                    <button class="text-[#cc241d] hover:text-white text-xs">✕</button>
-                </div>
-              `;
-        wrapper.querySelector("button").onclick = () => {
-          scene.boxes.splice(i, 1);
-          initSceneEditor();
-        };
-
-        wrapper.appendChild(createVec3Control("Pos", b.pos, () => { }));
-        wrapper.appendChild(createVec3Control("Size", b.size, () => { }, 0.1, 2.0));
-        wrapper.appendChild(createColorControl("Color", b.color, () => { }));
-        container.appendChild(wrapper);
+        const d = sdBox(sub(p, b.pos), b.size);
+        if (d < res.d) res = { d: d, id: MAT_BOX_BASE + i };
       });
+
+      scene.toruses.forEach((t, i) => {
+        const d = sdTorus(sub(p, t.pos), t.t);
+        if (d < res.d) res = { d: d, id: MAT_TORUS_BASE + i };
+      });
+
+      scene.pyramids.forEach((pyr, i) => {
+        const d = sdPyramid(sub(p, pyr.pos), pyr.h);
+        if (d < res.d) res = { d: d, id: MAT_PYRAMID_BASE + i };
+      });
+
+      return res;
     }
 
-    canvas.addEventListener("mousemove", (e) => {
-      const rect = canvas.getBoundingClientRect();
-      const dpr = devicePixelRatio || 1;
-      const prevX = mouseX / dpr;
-      const prevY = mouseY / dpr;
-      const currX = e.clientX - rect.left;
-      const currY = e.clientY - rect.top;
-
-      [mouseX, mouseY] = [currX * dpr, currY * dpr];
-
-      if (mouseDown) {
-        const dx = (currX - prevX);
-        const dy = (currY - prevY);
-
-        if (e.buttons === 1) { // Left Click: Look
-          // Lower sensitivity
-          cameraState.yawVel -= dx * 0.0005; // Was 0.002
-          cameraState.pitchVel -= dy * 0.0005; // Was 0.002
-        } else if (e.buttons === 2 || e.buttons === 4) { // Right/Middle Click: Pan
-          const r = camera.right;
-          const u = camera.up;
-          const panSpeed = 0.002; // Reduced from 0.005
-
-          // Momentum for pan
-          cameraState.velocity[0] -= (r[0] * dx - u[0] * dy) * panSpeed * 50;
-          cameraState.velocity[1] -= (r[1] * dx - u[1] * dy) * panSpeed * 50;
-          cameraState.velocity[2] -= (r[2] * dx - u[2] * dy) * panSpeed * 50;
-        }
+    // Ray Marching (CPU) to detect clicks
+    function rayMarchJS(ro, rd) {
+      let d = 0.0;
+      for (let i = 0; i < 64; i++) {
+        const p = add(ro, mul(rd, d));
+        const dist = getDistJS(p);
+        if (dist.d < 0.01) return { d: d, id: dist.id };
+        d += dist.d;
+        if (d > 100.0) break;
       }
-    });
+      return { d: d, id: -1 };
+    }
 
-    canvas.addEventListener("mousedown", (e) => {
-      mouseDown = true;
-      // Prevent context menu on right click
-      if (e.button === 2) e.preventDefault();
-    });
-    canvas.addEventListener("contextmenu", (e) => e.preventDefault());
-    canvas.addEventListener("mouseup", () => (mouseDown = false));
-    canvas.addEventListener("mouseleave", () => (mouseDown = false));
-    canvas.addEventListener("wheel", (e) => {
-      e.preventDefault();
-      const zoomSpeed = 0.005;
-      const f = camera.front;
-      const delta = e.deltaY * zoomSpeed;
+    // Convert mouse coordinates to 3D Ray
+    function getRayFromMouse(ndcX, ndcY) {
+      const camForward = normalize(camera.front);
+      const camRight = normalize(cross(camForward, [0, 1, 0]));
+      const camUp = cross(camRight, camForward);
+      const focalLength = 1.5;
 
-      camera.pos[0] -= f[0] * delta;
-      camera.pos[1] -= f[1] * delta;
-      camera.pos[2] -= f[2] * delta;
-    }, { passive: false });
+      const rd = normalize(add(add(mul(camRight, ndcX), mul(camUp, ndcY)), mul(camForward, focalLength)));
+      return { ro: camera.pos, rd: rd };
+    }
 
-    window.addEventListener("keydown", (e) => keys[e.key.toLowerCase()] = true);
-    window.addEventListener("keyup", (e) => keys[e.key.toLowerCase()] = false);
+    /* ==========================================================================
+       SECTION 4: WEBGPU SHADERS & SETUP
+       ========================================================================== */
 
-    // $("panel-toggle").onclick = () => {
-    //   isPanelOpen = !isPanelOpen;
-    //   $("uniforms-panel").style.width = isPanelOpen ? "250px" : "24px";
-    //   $("panel-content").style.display = isPanelOpen ? "flex" : "none";
-    //   $("toggle-arrow").textContent = isPanelOpen ? "▶" : "◀";
-    // };
+    // Default Fallback Shader
+    let fallbackShader = `// Fragment shader - runs once per pixel
+@fragment
+fn fs_main(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
+    // Simple gradient as fallback
+    let uv = fragCoord.xy / uniforms.resolution;
+    return vec4<f32>(uv, 0.5, 1.0);
+}`;
 
+    // Vertex Shader (Fullscreen Triangle)
     const vertexShader = `@vertex
 fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> @builtin(position) vec4<f32> {
   var pos = array<vec2<f32>, 3>(vec2<f32>(-1.0, -1.0), vec2<f32>(3.0, -1.0), vec2<f32>(-1.0, 3.0));
   return vec4<f32>(pos[vertexIndex], 0.0, 1.0);
 }`;
 
+    // Uniform Data Structure (Must match JS serialization layout)
     const uniformsStruct = `
 struct Sphere {
     pos: vec3<f32>,
@@ -460,13 +356,31 @@ struct Box {
     _pad3: f32,
 }
 
+struct Torus {
+    pos: vec3<f32>,
+    _pad1: f32,
+    t: vec2<f32>,
+    _pad2: vec2<f32>,
+    color: vec3<f32>,
+    _pad3: f32,
+}
+
+struct Pyramid {
+    pos: vec3<f32>,
+    h: f32,
+    color: vec3<f32>,
+    _pad: f32,
+}
+
 struct Scene {
     spheres: array<Sphere, 4>,
     boxes: array<Box, 4>,
+    toruses: array<Torus, 4>,
+    pyramids: array<Pyramid, 4>,
     num_spheres: u32,
     num_boxes: u32,
-    _pad1: u32,
-    _pad2: u32,
+    num_toruses: u32,
+    num_pyramids: u32,
 }
 
 struct Uniforms {
@@ -475,17 +389,20 @@ struct Uniforms {
     deltaTime: f32,
     mouse: vec4<f32>,
     frame: u32,
-    _pad_u1: u32,
+    selected_id: f32,
     _pad_u2: u32,
     _pad_u3: u32,
     camera_pos: vec3<f32>,
-    _pad_cam1: f32,
+    smooth_blend: f32,
     camera_front: vec3<f32>,
-    _pad_cam2: f32,
+    light_intensity: f32,
+    light_pos: vec3<f32>,
+    _pad_light: f32,
     scene: Scene,
 }
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;`;
 
+    // Initialize Device and Buffers
     async function initWebGPU() {
       if (!navigator.gpu)
         return ((errorMsg.textContent = "WebGPU not supported"), false);
@@ -495,14 +412,18 @@ struct Uniforms {
       context = canvas.getContext("webgpu");
       const format = navigator.gpu.getPreferredCanvasFormat();
       context.configure({ device, format });
+
+      // Create Buffer for Scene Data + Global Uniforms
       uniformBuffer = device.createBuffer({
-        size: 416, // 80 (base) + 336 (scene)
+        size: 800, // 96 (base) + 656 (scene) + padding
         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
       });
+
       await compileShader(fallbackShader);
       return true;
     }
 
+    // Compile and Pipeline Creation
     async function compileShader(fragmentCode) {
       const start = performance.now();
       try {
@@ -510,6 +431,8 @@ struct Uniforms {
         const code = vertexShader + "\n" + uniformsStruct + "\n" + fragmentCode; // prettier-ignore
         const shaderModule = device.createShaderModule({ code });
         const info = await shaderModule.getCompilationInfo();
+
+        // Error Handling & Line Mapping
         const lineOffset = (vertexShader + "\n" + uniformsStruct).split("\n").length; // prettier-ignore
         const errors = info.messages
           .filter((m) => m.type === "error")
@@ -526,6 +449,7 @@ struct Uniforms {
             errorMsg.classList.remove("hidden")
           );
 
+        // Pipeline Construction
         const format = navigator.gpu.getPreferredCanvasFormat();
         const bindGroupLayout = device.createBindGroupLayout({
           entries: [
@@ -552,21 +476,407 @@ struct Uniforms {
           layout: bindGroupLayout,
           entries: [{ binding: 0, resource: { buffer: uniformBuffer } }],
         });
-        // $("compile-time").textContent = `${(performance.now() - start).toFixed(2)}ms`; // prettier-ignore
       } catch (e) {
         errorMsg.textContent = "Compile error: " + e.message;
         errorMsg.classList.remove("hidden");
       }
     }
 
-    // Camera state with momentum
-    const cameraState = {
-      velocity: [0, 0, 0],
-      yawVel: 0,
-      pitchVel: 0,
-      friction: 0.8, // Increased friction (was 0.9)
-      acceleration: 0.5
-    };
+    // Async loader for external shader files
+    async function loadShaders() {
+      try {
+        const response = await fetch(`./shaders/raymarch_basic.wgsl?t=${Date.now()}`);
+        if (response.ok) {
+          fallbackShader = await response.text();
+          console.log("Loaded raymarch_basic.wgsl");
+        }
+      } catch (err) {
+        console.error("Failed to load shader:", err);
+      }
+    }
+
+    /* ==========================================================================
+       SECTION 5: INPUT HANDLING
+       ========================================================================== */
+
+    // Mouse Interaction
+    canvas.addEventListener("mousemove", (e) => {
+      if (typeof dragMode !== 'undefined' && dragMode) return;
+      const rect = canvas.getBoundingClientRect();
+      const dpr = devicePixelRatio || 1;
+      const prevX = mouseX / dpr;
+      const prevY = mouseY / dpr;
+      const currX = e.clientX - rect.left;
+      const currY = e.clientY - rect.top;
+
+      [mouseX, mouseY] = [currX * dpr, currY * dpr];
+
+      if (mouseDown) {
+        const dx = (currX - prevX);
+        const dy = (currY - prevY);
+
+        if (e.buttons === 1) { // Left Click: Look
+          cameraState.yawVel -= dx * 0.0005;
+          cameraState.pitchVel -= dy * 0.0005;
+        } else if (e.buttons === 2 || e.buttons === 4) { // Right/Middle Click: Pan
+          const r = camera.right;
+          const u = camera.up;
+          const panSpeed = 0.002;
+
+          cameraState.velocity[0] -= (r[0] * dx - u[0] * dy) * panSpeed * 50;
+          cameraState.velocity[1] -= (r[1] * dx - u[1] * dy) * panSpeed * 50;
+          cameraState.velocity[2] -= (r[2] * dx - u[2] * dy) * panSpeed * 50;
+        }
+      }
+    });
+
+    canvas.addEventListener("mousedown", (e) => {
+      mouseDown = true;
+
+      // Ray Picking Logic on Click (Left Click Only)
+      if (e.button !== 0) return;
+
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      const resX = canvas.width / (devicePixelRatio || 1);
+      const resY = canvas.height / (devicePixelRatio || 1);
+      const minRes = Math.min(resX, resY);
+      const uvX = (x - resX * 0.5) / minRes;
+      const uvY = -(y - resY * 0.5) / minRes;
+
+      const ray = getRayFromMouse(uvX, uvY);
+      let hit = rayMarchJS(ray.ro, ray.rd);
+
+      if (hit.id !== -1) {
+        selectedId = hit.id;
+        initSceneEditor(); // Rebuild UI to highlight selection
+      }
+    });
+
+    canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+    canvas.addEventListener("mouseup", () => { mouseDown = false; dragMode = null; });
+    canvas.addEventListener("mouseleave", () => { mouseDown = false; dragMode = null; });
+
+    canvas.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      const zoomSpeed = 0.005;
+      const f = camera.front;
+      const delta = e.deltaY * zoomSpeed;
+
+      camera.pos[0] -= f[0] * delta;
+      camera.pos[1] -= f[1] * delta;
+      camera.pos[2] -= f[2] * delta;
+    }, { passive: false });
+
+    // Keyboard Interaction
+    window.addEventListener("keydown", (e) => keys[e.key.toLowerCase()] = true);
+    window.addEventListener("keyup", (e) => keys[e.key.toLowerCase()] = false);
+
+    /* ==========================================================================
+       SECTION 6: UI GENERATION
+       ========================================================================== */
+
+    // UI Helpers
+    function createControl(label, value, type, callback, step = 0.01, min = -5, max = 5) {
+      const div = document.createElement("div");
+      div.className = "mb-2";
+      div.innerHTML = `
+          <div class="flex justify-between text-xs mb-1" style="color:#a89984">${label}</div>
+          <div class="flex gap-2">
+            <input type="${type}" value="${value}" step="${step}" min="${min}" max="${max}" class="w-full bg-[#3c3836] text-[#ebdbb2] rounded px-1 text-xs border-none outline-none focus:ring-1 ring-[#fe8019]">
+          </div>
+        `;
+      const input = div.querySelector("input");
+      input.oninput = (e) => callback(type === "number" || type === "range" ? parseFloat(e.target.value) : e.target.value);
+      return div;
+    }
+
+    function createVec3Control(label, vec, callback, min = -5, max = 5, idPrefix = "") {
+      const div = document.createElement("div");
+      div.className = "mb-3";
+      div.innerHTML = `<div class="text-xs font-bold mb-1" style="color:#fabd2f">${label}</div>`;
+
+      const axisColors = ["#ff3333", "#33ff33", "#3333ff"];
+      ["x", "y", "z"].forEach((axis, i) => {
+        const row = document.createElement("div");
+        row.className = "flex items-center gap-2 mb-1";
+        const inputId = idPrefix ? `${idPrefix}-${axis}` : "";
+        row.innerHTML = `
+                <span class="text-xs w-8 uppercase font-bold" style="color:${axisColors[i]}">${axis}</span>
+                <input id="${inputId}" type="range" min="${min}" max="${max}" step="0.01" value="${vec[i]}" class="flex-1 h-1 bg-[#1d2021] rounded appearance-none cursor-pointer">
+                <span class="text-xs w-8 text-right font-mono" style="color:#ebdbb2">${vec[i].toFixed(2)}</span>
+            `;
+        const input = row.querySelector("input");
+        const valDisplay = row.querySelector("span:last-child");
+        input.oninput = (e) => {
+          const val = parseFloat(e.target.value);
+          vec[i] = val;
+          valDisplay.textContent = val.toFixed(2);
+          callback();
+        };
+        div.appendChild(row);
+      });
+      return div;
+    }
+
+    function createColorControl(label, color, callback) {
+      const div = document.createElement("div");
+      div.className = "mb-3 flex items-center justify-between";
+
+      const toHex = (c) => {
+        const hex = Math.round(c * 255).toString(16).padStart(2, "0");
+        return hex;
+      };
+      const hexColor = `#${toHex(color[0])}${toHex(color[1])}${toHex(color[2])}`;
+
+      div.innerHTML = `
+            <div class="text-xs font-bold" style="color:#fabd2f">${label}</div>
+            <input type="color" value="${hexColor}" class="bg-transparent border-none w-8 h-8 cursor-pointer">
+          `;
+
+      const input = div.querySelector("input");
+      input.oninput = (e) => {
+        const hex = e.target.value;
+        color[0] = parseInt(hex.substr(1, 2), 16) / 255;
+        color[1] = parseInt(hex.substr(3, 2), 16) / 255;
+        color[2] = parseInt(hex.substr(5, 2), 16) / 255;
+        callback();
+      };
+      return div;
+    }
+
+    // Main UI Builder
+    function initSceneEditor() {
+      const container = document.getElementById("editor-container");
+
+      // Reset content
+      while (container.children.length > 1) {
+        container.removeChild(container.lastChild);
+      }
+
+      const content = document.createElement("div");
+      content.className = "p-4 overflow-y-auto flex-1";
+      container.appendChild(content);
+
+      // 1. Global Settings Panel
+      const globalSettings = document.createElement("div");
+      globalSettings.className = "mb-6 p-2 bg-[#3c3836] rounded border border-[#504945]";
+      globalSettings.innerHTML = `
+        <div class="text-xs font-bold text-[#ebdbb2] mb-2">Global Settings</div>
+        <div class="mb-2">
+            <label class="text-[10px] text-[#a89984] block">Smooth Blend</label>
+            <input type="range" min="0" max="2" step="0.01" value="${smoothBlend}" class="w-full h-1 bg-[#504945] rounded-lg appearance-none cursor-pointer" oninput="smoothBlend = parseFloat(this.value)">
+        </div>
+        <div class="mb-2">
+            <label class="text-[10px] text-[#a89984] block">Light Intensity</label>
+            <input type="range" min="0" max="5" step="0.1" value="${lightIntensity}" class="w-full h-1 bg-[#504945] rounded-lg appearance-none cursor-pointer" oninput="lightIntensity = parseFloat(this.value)">
+        </div>
+        <div class="mb-2">
+             <label class="text-[10px] text-[#a89984] block">Light Pos</label>
+             <div class="flex gap-1">
+                <input type="number" value="${lightPos[0]}" step="0.1" class="w-1/3 bg-[#1d2021] text-[#ebdbb2] text-[10px] rounded px-1 border border-[#504945]" oninput="lightPos[0] = parseFloat(this.value)">
+                <input type="number" value="${lightPos[1]}" step="0.1" class="w-1/3 bg-[#1d2021] text-[#ebdbb2] text-[10px] rounded px-1 border border-[#504945]" oninput="lightPos[1] = parseFloat(this.value)">
+                <input type="number" value="${lightPos[2]}" step="0.1" class="w-1/3 bg-[#1d2021] text-[#ebdbb2] text-[10px] rounded px-1 border border-[#504945]" oninput="lightPos[2] = parseFloat(this.value)">
+             </div>
+        </div>
+      `;
+      content.appendChild(globalSettings);
+
+      // 2. Add Object Buttons
+      const addBtnDiv = document.createElement("div");
+      addBtnDiv.className = "flex gap-2 mb-4 flex-wrap";
+      addBtnDiv.innerHTML = `
+            <button id="add-sphere" class="flex-1 bg-[#d65d0e] text-[#ebdbb2] py-1 rounded text-xs hover:opacity-80">Add Sphere</button>
+            <button id="add-box" class="flex-1 bg-[#689d6a] text-[#ebdbb2] py-1 rounded text-xs hover:opacity-80">Add Box</button>
+            <button id="add-torus" class="flex-1 bg-[#458588] text-[#ebdbb2] py-1 rounded text-xs hover:opacity-80">Add Torus</button>
+            <button id="add-pyramid" class="flex-1 bg-[#b16286] text-[#ebdbb2] py-1 rounded text-xs hover:opacity-80">Add Pyramid</button>
+          `;
+      content.appendChild(addBtnDiv);
+
+      // Button Logic
+      addBtnDiv.querySelector("#add-sphere").onclick = () => {
+        if (scene.spheres.length < 4) {
+          scene.spheres.push({ pos: [0, 0, 0], r: 0.5, color: [1.0, 0.5, 0.5] });
+          initSceneEditor();
+        }
+      };
+      addBtnDiv.querySelector("#add-box").onclick = () => {
+        if (scene.boxes.length < 4) {
+          scene.boxes.push({ pos: [0, 0, 0], size: [0.5, 0.5, 0.5], color: [0.5, 1.0, 0.5] });
+          initSceneEditor();
+        }
+      };
+      addBtnDiv.querySelector("#add-torus").onclick = () => {
+        if (scene.toruses.length < 4) {
+          scene.toruses.push({ pos: [0, 0, 0], t: [0.4, 0.1], color: [0.3, 0.3, 1.0] });
+          initSceneEditor();
+        }
+      };
+      addBtnDiv.querySelector("#add-pyramid").onclick = () => {
+        if (scene.pyramids.length < 4) {
+          scene.pyramids.push({ pos: [0, 0, 0], h: 0.5, color: [1.0, 1.0, 0.0] });
+          initSceneEditor();
+        }
+      };
+
+      // 3. Generate Controls for each object type
+
+      // Spheres
+      scene.spheres.forEach((s, i) => {
+        const wrapper = document.createElement("div");
+        wrapper.className = "mb-4 p-2 bg-[#3c3836] rounded";
+        wrapper.innerHTML = `
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-[#fe8019]">Sphere ${i + 1}</span>
+                    <button class="text-[#cc241d] hover:text-white text-xs">✕</button>
+                </div>
+              `;
+        wrapper.querySelector("button").onclick = () => {
+          scene.spheres.splice(i, 1);
+          initSceneEditor();
+        };
+
+        wrapper.appendChild(createVec3Control("Pos", s.pos, () => { }, -5, 5, `s-${i}-pos`));
+
+        const rDiv = document.createElement("div");
+        rDiv.className = "mb-2 flex items-center gap-2";
+        rDiv.innerHTML = `<span class="text-xs w-8 text-[#a89984]">Rad</span><input id="s-${i}-r" type="range" min="0.1" max="2.0" step="0.01" value="${s.r}" class="flex-1 h-1 bg-[#1d2021] rounded appearance-none cursor-pointer">`;
+        rDiv.querySelector("input").oninput = (e) => s.r = parseFloat(e.target.value);
+        wrapper.appendChild(rDiv);
+
+        wrapper.appendChild(createColorControl("Color", s.color, () => { }, `s-${i}-col`));
+        content.appendChild(wrapper);
+      });
+
+      // Boxes
+      scene.boxes.forEach((b, i) => {
+        const wrapper = document.createElement("div");
+        wrapper.className = "mb-4 p-2 bg-[#3c3836] rounded";
+        wrapper.innerHTML = `
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-[#b8bb26]">Box ${i + 1}</span>
+                    <button class="text-[#cc241d] hover:text-white text-xs">✕</button>
+                </div>
+              `;
+        wrapper.querySelector("button").onclick = () => {
+          scene.boxes.splice(i, 1);
+          initSceneEditor();
+        };
+
+        wrapper.appendChild(createVec3Control("Pos", b.pos, () => { }, -5, 5, `b-${i}-pos`));
+        wrapper.appendChild(createVec3Control("Size", b.size, () => { }, 0.1, 2.0, `b-${i}-size`));
+        wrapper.appendChild(createColorControl("Color", b.color, () => { }, `b-${i}-col`));
+        content.appendChild(wrapper);
+      });
+
+      // Toruses
+      scene.toruses.forEach((t, i) => {
+        const wrapper = document.createElement("div");
+        wrapper.className = "mb-4 p-2 bg-[#3c3836] rounded";
+        wrapper.innerHTML = `
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-[#83a598]">Torus ${i + 1}</span>
+                    <button class="text-[#cc241d] hover:text-white text-xs">✕</button>
+                </div>
+              `;
+        wrapper.querySelector("button").onclick = () => {
+          scene.toruses.splice(i, 1);
+          initSceneEditor();
+        };
+
+        wrapper.appendChild(createVec3Control("Pos", t.pos, () => { }, -5, 5, `t-${i}-pos`));
+
+        const tDiv = document.createElement("div");
+        tDiv.className = "mb-2";
+        tDiv.innerHTML = `
+          <div class="flex gap-2">
+            <div class="flex-1">
+               <span class="text-xs text-[#a89984]">R1</span>
+               <input id="t-${i}-r1" type="range" min="0.1" max="2.0" step="0.01" value="${t.t[0]}" class="w-full h-1 bg-[#1d2021] rounded appearance-none cursor-pointer">
+            </div>
+            <div class="flex-1">
+               <span class="text-xs text-[#a89984]">R2</span>
+               <input id="t-${i}-r2" type="range" min="0.01" max="1.0" step="0.01" value="${t.t[1]}" class="w-full h-1 bg-[#1d2021] rounded appearance-none cursor-pointer">
+            </div>
+          </div>
+        `;
+        tDiv.querySelector("#t-" + i + "-r1").oninput = (e) => t.t[0] = parseFloat(e.target.value);
+        tDiv.querySelector("#t-" + i + "-r2").oninput = (e) => t.t[1] = parseFloat(e.target.value);
+        wrapper.appendChild(tDiv);
+
+        wrapper.appendChild(createColorControl("Color", t.color, () => { }, `t-${i}-col`));
+        content.appendChild(wrapper);
+      });
+
+      // Pyramids
+      scene.pyramids.forEach((p, i) => {
+        const wrapper = document.createElement("div");
+        wrapper.className = "mb-4 p-2 bg-[#3c3836] rounded";
+        wrapper.innerHTML = `
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-[#d3869b]">Pyramid ${i + 1}</span>
+                    <button class="text-[#cc241d] hover:text-white text-xs">✕</button>
+                </div>
+              `;
+        wrapper.querySelector("button").onclick = () => {
+          scene.pyramids.splice(i, 1);
+          initSceneEditor();
+        };
+
+        wrapper.appendChild(createVec3Control("Pos", p.pos, () => { }, -5, 5, `p-${i}-pos`));
+
+        const hDiv = document.createElement("div");
+        hDiv.className = "mb-2 flex items-center gap-2";
+        hDiv.innerHTML = `<span class="text-xs w-8 text-[#a89984]">H</span><input id="p-${i}-h" type="range" min="0.1" max="2.0" step="0.01" value="${p.h}" class="flex-1 h-1 bg-[#1d2021] rounded appearance-none cursor-pointer">`;
+        hDiv.querySelector("input").oninput = (e) => p.h = parseFloat(e.target.value);
+        wrapper.appendChild(hDiv);
+
+        wrapper.appendChild(createColorControl("Color", p.color, () => { }, `p-${i}-col`));
+        content.appendChild(wrapper);
+      });
+    }
+
+    function updateUIValues() {
+      // Helper to update specific input fields if they exist
+      scene.spheres.forEach((s, i) => {
+        const px = document.getElementById(`s-${i}-pos-x`);
+        const py = document.getElementById(`s-${i}-pos-y`);
+        const pz = document.getElementById(`s-${i}-pos-z`);
+        if (px) { px.value = s.pos[0]; px.nextElementSibling.textContent = s.pos[0].toFixed(2); }
+        if (py) { py.value = s.pos[1]; py.nextElementSibling.textContent = s.pos[1].toFixed(2); }
+        if (pz) { pz.value = s.pos[2]; pz.nextElementSibling.textContent = s.pos[2].toFixed(2); }
+      });
+      scene.boxes.forEach((b, i) => {
+        const px = document.getElementById(`b-${i}-pos-x`);
+        const py = document.getElementById(`b-${i}-pos-y`);
+        const pz = document.getElementById(`b-${i}-pos-z`);
+        if (px) { px.value = b.pos[0]; px.nextElementSibling.textContent = b.pos[0].toFixed(2); }
+        if (py) { py.value = b.pos[1]; py.nextElementSibling.textContent = b.pos[1].toFixed(2); }
+        if (pz) { pz.value = b.pos[2]; pz.nextElementSibling.textContent = b.pos[2].toFixed(2); }
+      });
+      scene.toruses.forEach((t, i) => {
+        const px = document.getElementById(`t-${i}-pos-x`);
+        const py = document.getElementById(`t-${i}-pos-y`);
+        const pz = document.getElementById(`t-${i}-pos-z`);
+        if (px) { px.value = t.pos[0]; px.nextElementSibling.textContent = t.pos[0].toFixed(2); }
+        if (py) { py.value = t.pos[1]; py.nextElementSibling.textContent = t.pos[1].toFixed(2); }
+        if (pz) { pz.value = t.pos[2]; pz.nextElementSibling.textContent = t.pos[2].toFixed(2); }
+      });
+      scene.pyramids.forEach((p, i) => {
+        const px = document.getElementById(`p-${i}-pos-x`);
+        const py = document.getElementById(`p-${i}-pos-y`);
+        const pz = document.getElementById(`p-${i}-pos-z`);
+        if (px) { px.value = p.pos[0]; px.nextElementSibling.textContent = p.pos[0].toFixed(2); }
+        if (py) { py.value = p.pos[1]; py.nextElementSibling.textContent = p.pos[1].toFixed(2); }
+        if (pz) { pz.value = p.pos[2]; pz.nextElementSibling.textContent = p.pos[2].toFixed(2); }
+      });
+    }
+
+    /* ==========================================================================
+       SECTION 7: ENGINE LOOP & CAMERA PHYSICS
+       ========================================================================== */
 
     function updateCamera(dt) {
       const s = camera.speed * dt;
@@ -576,68 +886,52 @@ struct Uniforms {
       camera.yaw += cameraState.yawVel;
       camera.pitch += cameraState.pitchVel;
 
-      // Damping
-      cameraState.yawVel *= 0.5; // Faster stop (was 0.8)
-      cameraState.pitchVel *= 0.5; // Faster stop (was 0.8)
+      // Damping (Friction)
+      cameraState.yawVel *= 0.5;
+      cameraState.pitchVel *= 0.5;
 
       camera.pitch = Math.max(-1.5, Math.min(1.5, camera.pitch));
 
+      // Calculate new vectors
       camera.front = [
         Math.sin(camera.yaw) * Math.cos(camera.pitch),
         Math.sin(camera.pitch),
         Math.cos(camera.yaw) * Math.cos(camera.pitch)
       ];
 
-      // Re-calculate right/up vectors for movement
       const f = camera.front;
-      const r = [Math.cos(camera.yaw), 0, -Math.sin(camera.yaw)]; // Simple right vector on XZ plane
+      const r = [Math.cos(camera.yaw), 0, -Math.sin(camera.yaw)];
       const u = [0, 1, 0];
 
-      // Store right/up for pan
       camera.right = r;
       camera.up = u;
 
-      // Input vector
+      // Handle Keyboard Input
       let inputDir = [0, 0, 0];
-
-      // AZERTY: ZQSD
-      // User requested Q/D swap: Q=Right, D=Left (or just fixed if it was wrong)
-      // Standard AZERTY: Q is Left, D is Right.
-      // User said "inverted Q and D", so I will swap my previous logic.
-      // Previous: Q=Left, D=Right.
-      // New: Q=Right, D=Left.
-
       if (keys["z"]) { inputDir[0] += f[0]; inputDir[1] += f[1]; inputDir[2] += f[2]; }
       if (keys["s"]) { inputDir[0] -= f[0]; inputDir[1] -= f[1]; inputDir[2] -= f[2]; }
+      if (keys["q"]) { inputDir[0] += r[0]; inputDir[1] += r[1]; inputDir[2] += r[2]; }
+      if (keys["d"]) { inputDir[0] -= r[0]; inputDir[1] -= r[1]; inputDir[2] -= r[2]; }
+      if (keys["a"]) { inputDir[1] += 1; }
+      if (keys["e"]) { inputDir[1] -= 1; }
 
-      // Swapped Q and D logic as requested
-      if (keys["q"]) { inputDir[0] += r[0]; inputDir[1] += r[1]; inputDir[2] += r[2]; } // Q -> Right
-      if (keys["d"]) { inputDir[0] -= r[0]; inputDir[1] -= r[1]; inputDir[2] -= r[2]; } // D -> Left
-
-      if (keys["a"]) { inputDir[1] += 1; } // Up
-      if (keys["e"]) { inputDir[1] -= 1; } // Down
-
-      // Normalize input to avoid faster diagonal movement
+      // Normalize & Accelerate
       const len = Math.sqrt(inputDir[0] ** 2 + inputDir[1] ** 2 + inputDir[2] ** 2);
       if (len > 0) {
         inputDir[0] /= len;
         inputDir[1] /= len;
         inputDir[2] /= len;
       }
-
-      // Apply acceleration
       if (len > 0) {
         cameraState.velocity[0] += inputDir[0] * acc * dt * 100;
         cameraState.velocity[1] += inputDir[1] * acc * dt * 100;
         cameraState.velocity[2] += inputDir[2] * acc * dt * 100;
       }
 
-      // Apply velocity
+      // Apply Velocity & Friction
       camera.pos[0] += cameraState.velocity[0] * dt;
       camera.pos[1] += cameraState.velocity[1] * dt;
       camera.pos[2] += cameraState.velocity[2] * dt;
-
-      // Friction
       cameraState.velocity[0] *= cameraState.friction;
       cameraState.velocity[1] *= cameraState.friction;
       cameraState.velocity[2] *= cameraState.friction;
@@ -651,41 +945,29 @@ struct Uniforms {
 
       updateCamera(deltaTime);
 
-      // Serialize Uniforms
-      // Base: resolution(2), time(1), dt(1), mouse(4), frame(1), pad(3) -> 12 floats + 3 pads? 
-      // Layout:
-      // 0-8: res (2f)
-      // 8-12: time (1f)
-      // 12-16: dt (1f)
-      // 16-32: mouse (4f)
-      // 32-36: frame (1u)
-      // 36-48: pad (3u)
-      // 48-60: cam_pos (3f)
-      // 60-64: pad (1f)
-      // 64-76: cam_front (3f)
-      // 76-80: pad (1f)
-      // 80: Scene
+      /* --- SERIALIZATION START --- */
+      // Pack JS data into Float32Array to send to GPU
 
-      const baseData = new Float32Array(20); // 80 bytes / 4 = 20 floats
+      // 1. Base Uniforms
+      const baseData = new Float32Array(24);
       baseData.set([canvas.width, canvas.height], 0);
       baseData.set([elapsedTime], 2);
       baseData.set([deltaTime], 3);
       baseData.set([mouseX, mouseY, mouseDown ? 1 : 0, 0], 4);
-      // Frame is u32, handle separately or cast
-      baseData.set([...camera.pos, 0], 12);
-      baseData.set([...camera.front, 0], 16);
+      baseData.set([selectedId], 9);
+      baseData.set([...camera.pos, smoothBlend], 12);
+      baseData.set([...camera.front, lightIntensity], 16);
+      baseData.set([...lightPos, 0], 20);
 
       device.queue.writeBuffer(uniformBuffer, 0, baseData);
-      device.queue.writeBuffer(uniformBuffer, 32, new Uint32Array([frameCount])); // Write frame at offset 32
+      device.queue.writeBuffer(uniformBuffer, 32, new Uint32Array([frameCount]));
 
-      // Serialize Scene
-      // Spheres: 4 * 8 floats = 32 floats
-      // Boxes: 4 * 12 floats = 48 floats
-      // Counts: 2 u32
-
-      const sceneOffset = 80;
-      const sphereSize = 32; // bytes
-      const boxSize = 48; // bytes
+      // 2. Scene Data Serialization
+      const sceneOffset = 96;
+      const sphereSize = 128;
+      const boxSize = 192;
+      const torusSize = 192;
+      const pyramidSize = 128;
 
       // Write Spheres
       const sphereData = new Float32Array(4 * 8);
@@ -701,16 +983,33 @@ struct Uniforms {
         if (i >= 4) return;
         boxData.set([...b.pos, 0, ...b.size, 0, ...b.color, 0], i * 12);
       });
-      device.queue.writeBuffer(uniformBuffer, sceneOffset + 128, boxData);
+      device.queue.writeBuffer(uniformBuffer, sceneOffset + sphereSize, boxData);
 
-      // Write Counts
-      device.queue.writeBuffer(uniformBuffer, sceneOffset + 128 + 192, new Uint32Array([scene.spheres.length, scene.boxes.length]));
+      // Write Toruses
+      const torusData = new Float32Array(4 * 12);
+      scene.toruses.forEach((t, i) => {
+        if (i >= 4) return;
+        torusData.set([...t.pos, 0, ...t.t, 0, 0, ...t.color, 0], i * 12);
+      });
+      device.queue.writeBuffer(uniformBuffer, sceneOffset + sphereSize + boxSize, torusData);
 
-      // UI Updates
+      // Write Pyramids
+      const pyramidData = new Float32Array(4 * 8);
+      scene.pyramids.forEach((p, i) => {
+        if (i >= 4) return;
+        pyramidData.set([...p.pos, p.h, ...p.color, 0], i * 8);
+      });
+      device.queue.writeBuffer(uniformBuffer, sceneOffset + sphereSize + boxSize + torusSize, pyramidData);
+
+      // Write Object Counts
+      device.queue.writeBuffer(uniformBuffer, sceneOffset + sphereSize + boxSize + torusSize + pyramidSize, new Uint32Array([scene.spheres.length, scene.boxes.length, scene.toruses.length, scene.pyramids.length]));
+      /* --- SERIALIZATION END --- */
+
+      // FPS Counter
       $("fps").textContent = Math.round(1 / deltaTime) + " FPS";
-
       lastFrameTime = currentTime;
 
+      // Draw Call
       const encoder = device.createCommandEncoder();
       const pass = encoder.beginRenderPass({
         colorAttachments: [
@@ -724,7 +1023,7 @@ struct Uniforms {
       });
       pass.setPipeline(pipeline);
       pass.setBindGroup(0, bindGroup);
-      pass.draw(3);
+      pass.draw(3); // Fullscreen triangle
       pass.end();
       device.queue.submit([encoder.finish()]);
 
@@ -741,27 +1040,9 @@ struct Uniforms {
       canvas.style.height = container.clientHeight + "px";
     }
 
-    // Removed compileBtn.onclick
-    // Removed fullscreen functions
-    // Removed shaderSelector listeners
-
-    // Load shaders from files
-    async function loadShaders() {
-      try {
-        const response = await fetch("./shaders/raymarch_basic.wgsl");
-        if (response.ok) {
-          fallbackShader = await response.text();
-          console.log("Loaded raymarch_basic.wgsl");
-        }
-      } catch (err) {
-        console.error("Failed to load shader:", err);
-      }
-    }
-
-
-
-
-    // Main initialization
+    /* ==========================================================================
+       SECTION 8: ENTRY POINT
+       ========================================================================== */
     const main = async () => {
       await loadShaders();
       resizeCanvas();
@@ -771,6 +1052,7 @@ struct Uniforms {
       }
     };
     main();
+
   </script>
 </body>
 

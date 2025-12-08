@@ -8,19 +8,30 @@
 [**Click Here For Live Demo**](https://oscarinho7.github.io/WebGPU-Project-Interactive-Ray-Marching-Scene-Editor/)
 
 ## Overview
-A powerful, interactive 3D scene editor built with WebGPU and Ray Marching. This application allows users to manipulate 3D primitives in real-time using a custom UI panel, demonstrating the power of modern web graphics.
+A powerful, interactive 3D scene editor built with WebGPU and Ray Marching. This application allows users to compose and manipulate complex 3D scenes in real-time using Signed Distance Functions (SDFs).
 
 ## Features
--   **Real-time Ray Marching**: Renders complex 3D scenes using signed distance functions (SDFs).
--   **Interactive Scene Panel**: Modify object properties (position, size, color) on the fly.
--   **Dynamic Uniforms**: Seamlessly updates WebGPU uniform buffers without recompilation.
--   **Shader Editor**: Built-in code editor to modify WGSL shaders directly.
+-   **Interactive Scene Editor**: Add, remove, and edit Spheres, Boxes, Toruses, and Pyramids.
+-   **Real-time Manipulation**: Adjust position, size, rotation, and color instantly.
+-   **Advanced Rendering**: Soft shadows, dynamic lighting, and smooth blending.
+-   **WebGPU Powered**: High-performance rendering using the latest web graphics API.
+-   **Hot-Swappable Uniforms**: Efficiently updates GPU buffers without shader recompilation.
+
+## Controls
+Navigate the 3D scene using the following controls:
+
+-   **Move**: `Z` (Forward), `S` (Backward), `Q` (Left), `D` (Right)
+-   **Elevation**: `A` (Up), `E` (Down)
+-   **Look Around**: Left Click + Drag
+-   **Pan Camera**: Right Click + Drag
+-   **Zoom**: Mouse Wheel
+-   **Select Object**: Left Click on an object
 
 ## Tech Stack
--   **WebGPU**: Next-generation graphics API for the web.
--   **WGSL**: WebGPU Shading Language.
--   **JavaScript**: Core application logic and UI management.
--   **TailwindCSS**: Modern styling for the user interface.
+-   **WebGPU**
+-   **WGSL**
+-   **JavaScript**
+-   **TailwindCSS**
 
 ## Local Development
 1.  Clone the repository.
@@ -30,6 +41,7 @@ A powerful, interactive 3D scene editor built with WebGPU and Ray Marching. This
     python -m http.server
     ```
 4.  Open your browser to `http://localhost:8000`.
+
 
 
 
