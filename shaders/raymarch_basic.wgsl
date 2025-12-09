@@ -34,8 +34,8 @@ fn fs_main(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
     // Soft Shadows (New)
     let shadow = soft_shadow(hit_pos + normal * 0.01, l, 0.02, length(light_pos - hit_pos), 8.0);
 
-    // Material Color
-    var obj_color = get_material_color(result.y, hit_pos);
+    // Material Color (Smooth Blend)
+    var obj_color = get_smooth_color(hit_pos);
     
     // Combine
     let ambient = vec3<f32>(0.2);
@@ -84,6 +84,9 @@ const MAT_SPHERE_BASE: f32 = 10.0;
 const MAT_BOX_BASE: f32 = 20.0;
 const MAT_TORUS_BASE: f32 = 30.0;
 const MAT_PYRAMID_BASE: f32 = 40.0;
+const MAT_AXIS_X: f32 = 100.0;
+const MAT_AXIS_Y: f32 = 101.0;
+const MAT_AXIS_Z: f32 = 102.0;
 
 // Material Colors
 const MAT_SKY_COLOR: vec3<f32> = vec3<f32>(0.15, 0.15, 0.15); // Darker background
@@ -106,6 +109,12 @@ fn get_material_color(mat_id: f32, p: vec3<f32>) -> vec3<f32> {
   } else if mat_id >= MAT_PYRAMID_BASE && mat_id < MAT_PYRAMID_BASE + 4.0 {
     let idx = u32(mat_id - MAT_PYRAMID_BASE);
     return uniforms.scene.pyramids[idx].color;
+  } else if mat_id == MAT_AXIS_X {
+    return vec3<f32>(1.0, 0.0, 0.0); // Red X
+  } else if mat_id == MAT_AXIS_Y {
+    return vec3<f32>(0.0, 1.0, 0.0); // Green Y
+  } else if mat_id == MAT_AXIS_Z {
+    return vec3<f32>(0.0, 0.0, 1.0); // Blue Z
   }
   return vec3<f32>(0.5, 0.5, 0.5);
 }
@@ -153,6 +162,33 @@ fn sd_pyramid(p: vec3<f32>, h: f32) -> f32 {
 
 fn sd_plane(p: vec3<f32>, n: vec3<f32>, h: f32) -> f32 {
   return dot(p, n) + h;
+}
+
+fn sd_cylinder(p: vec3<f32>, h: f32, r: f32) -> f32 {
+  let d = abs(vec2<f32>(length(p.xz), p.y)) - vec2<f32>(r, h);
+  return min(max(d.x, d.y), 0.0) + length(max(d, vec2<f32>(0.0)));
+}
+
+fn sd_cone(p: vec3<f32>, c: vec2<f32>, h: f32) -> f32 {
+  let q = length(p.xz);
+  return max(dot(c, vec2<f32>(q, p.y)), -h - p.y);
+}
+
+fn sd_arrow(p: vec3<f32>, len: f32, r: f32) -> f32 {
+    let h_cyl = len * 0.8;
+    let h_cone = len * 0.2;
+    let r_cone = r * 2.5;
+    
+    // Cylinder
+    let d_cyl = sd_cylinder(p - vec3<f32>(0.0, h_cyl * 0.5, 0.0), h_cyl * 0.5, r);
+    
+    // Cone
+    // c is normalized (r, h)
+    let hyp = sqrt(r_cone * r_cone + h_cone * h_cone);
+    let c = vec2<f32>(h_cone / hyp, r_cone / hyp); // cos, sin
+    let d_cone = sd_cone(p - vec3<f32>(0.0, h_cyl, 0.0), c, h_cone);
+    
+    return min(d_cyl, d_cone);
 }
 
 
@@ -227,7 +263,98 @@ fn get_dist(p: vec3<f32>) -> vec2<f32> {
       }
   }
 
+  // Coordinate Axes (Hard Union - No Blending)
+  let axis_len = 1.0;
+  let axis_width = 0.02;
+  
+  // X Axis (Red)
+  let d_x = sd_arrow(vec3<f32>(p.y, p.x, p.z), axis_len, axis_width);
+  if d_x < hard_d && d_x < smooth_d {
+      smooth_d = d_x;
+      hard_d = d_x;
+      mat_id = MAT_AXIS_X;
+  }
+
+  // Y Axis (Green)
+  let d_y = sd_arrow(p, axis_len, axis_width);
+  if d_y < hard_d && d_y < smooth_d {
+      smooth_d = d_y;
+      hard_d = d_y;
+      mat_id = MAT_AXIS_Y;
+  }
+
+  // Z Axis (Blue)
+  let d_z = sd_arrow(vec3<f32>(p.x, p.z, p.y), axis_len, axis_width);
+  if d_z < hard_d && d_z < smooth_d {
+      smooth_d = d_z;
+      hard_d = d_z;
+      mat_id = MAT_AXIS_Z;
+  }
+
   return vec2<f32>(smooth_d, mat_id);
+}
+
+// Helper for smooth color blending (must match get_dist logic)
+fn get_smooth_color(p: vec3<f32>) -> vec3<f32> {
+  var d_accum = MAX_DIST;
+  var color_accum = vec3<f32>(0.0);
+  let k = uniforms.smooth_blend;
+
+  // Spheres
+  for (var i: u32 = 0; i < uniforms.scene.num_spheres; i++) {
+      let sphere = uniforms.scene.spheres[i];
+      let d = sd_sphere(p - sphere.pos, sphere.r);
+      
+      // Smooth Union Logic
+      let h = clamp(0.5 + 0.5 * (d - d_accum) / k, 0.0, 1.0);
+      d_accum = mix(d, d_accum, h) - k * h * (1.0 - h);
+      color_accum = mix(sphere.color, color_accum, h);
+  }
+
+  // Boxes
+  for (var i: u32 = 0; i < uniforms.scene.num_boxes; i++) {
+      let box = uniforms.scene.boxes[i];
+      let d = sd_box(p - box.pos, box.size);
+      
+      let h = clamp(0.5 + 0.5 * (d - d_accum) / k, 0.0, 1.0);
+      d_accum = mix(d, d_accum, h) - k * h * (1.0 - h);
+      color_accum = mix(box.color, color_accum, h);
+  }
+
+  // Toruses
+  for (var i: u32 = 0; i < uniforms.scene.num_toruses; i++) {
+      let torus = uniforms.scene.toruses[i];
+      let d = sd_torus(p - torus.pos, torus.t);
+      
+      let h = clamp(0.5 + 0.5 * (d - d_accum) / k, 0.0, 1.0);
+      d_accum = mix(d, d_accum, h) - k * h * (1.0 - h);
+      color_accum = mix(torus.color, color_accum, h);
+  }
+
+  // Pyramids
+  for (var i: u32 = 0; i < uniforms.scene.num_pyramids; i++) {
+      let pyr = uniforms.scene.pyramids[i];
+      let d = sd_pyramid(p - pyr.pos, pyr.h);
+      
+      let h = clamp(0.5 + 0.5 * (d - d_accum) / k, 0.0, 1.0);
+      d_accum = mix(d, d_accum, h) - k * h * (1.0 - h);
+      color_accum = mix(pyr.color, color_accum, h);
+  }
+
+  // Check Gizmos (Hard Overlay)
+  let axis_len = 1.0;
+  let axis_width = 0.02;
+  
+  let d_x = sd_arrow(vec3<f32>(p.y, p.x, p.z), axis_len, axis_width);
+  if d_x < d_accum { return vec3<f32>(1.0, 0.0, 0.0); }
+
+  let d_y = sd_arrow(p, axis_len, axis_width);
+  if d_y < d_accum { return vec3<f32>(0.0, 1.0, 0.0); }
+
+  let d_z = sd_arrow(vec3<f32>(p.x, p.z, p.y), axis_len, axis_width);
+  if d_z < d_accum { return vec3<f32>(0.0, 0.0, 1.0); }
+
+  return color_accum;
 }
 
 

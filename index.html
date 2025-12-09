@@ -406,10 +406,17 @@ struct Uniforms {
 
     // Initialize Device and Buffers
     async function initWebGPU() {
-      if (!navigator.gpu)
-        return ((errorMsg.textContent = "WebGPU not supported"), false);
-      const adapter = await navigator.gpu.requestAdapter();
-      if (!adapter) return ((errorMsg.textContent = "No GPU adapter"), false);
+      if (!navigator.gpu) {
+        errorMsg.textContent = "WebGPU not supported on this device/browser.";
+        errorMsg.classList.remove("hidden");
+        return false;
+      }
+      const adapter = await navigator.gpu.requestAdapter({ powerPreference: "high-performance" });
+      if (!adapter) {
+        errorMsg.textContent = "No GPU adapter found.";
+        errorMsg.classList.remove("hidden");
+        return false;
+      }
       device = await adapter.requestDevice();
       context = canvas.getContext("webgpu");
       const format = navigator.gpu.getPreferredCanvasFormat();
