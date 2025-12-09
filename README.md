@@ -26,7 +26,7 @@ Navigate the 3D scene using the following controls:
 -   **Zoom**: Mouse Wheel
 -   **Select Object**: Left Click on an object
 
-## Tech Stack
+##  Stack
 -   **WebGPU**
 -   **WGSL**
 -   **JavaScript**
@@ -40,6 +40,7 @@ Navigate the 3D scene using the following controls:
     python -m http.server
     ```
 4.  Open your browser to `http://localhost:8000`.
+
 
 
 
