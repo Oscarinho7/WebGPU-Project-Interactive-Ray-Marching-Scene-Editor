@@ -2,7 +2,7 @@
 
 
 ## Scene Editor Preview
-<img src="./images/scene.png" width="600">
+<img src="./images/scene2.png" width="600">
 
 [**Click Here For Live Demo**](https://oscarinho7.github.io/WebGPU-Project-Interactive-Ray-Marching-Scene-Editor/)
 
@@ -40,6 +40,7 @@ Navigate the 3D scene using the following controls:
     python -m http.server
     ```
 4.  Open your browser to `http://localhost:8000`.
+
 
 
 
